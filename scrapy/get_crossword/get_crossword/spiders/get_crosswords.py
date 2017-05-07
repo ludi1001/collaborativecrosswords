@@ -18,7 +18,7 @@ class CrosswordSpider(scrapy.Spider):
         )
 
     def after_login(self, response):
-        yield scrapy.Request(url='https://www.nytimes.com/crosswords/game/mini/2017/05/06',
+        yield scrapy.Request(url='https://www.nytimes.com/crosswords/game/2017/05/06',
                              callback=self.parse_crossword)
 
     def parse_crossword(self, response):
