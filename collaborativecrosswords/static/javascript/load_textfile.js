@@ -30,17 +30,23 @@ function authorize() {
 function start() {
     // With auth taken care of, load a file, or create one if there
     // is not an id in the URL.
-    var id = realtimeUtils.getParam('id');
-    if (id) {
+    var date = realtimeUtils.getParam('date');
+    if (!date) {
+	date = new Date();
+    }
+    gapi.drive.realtime.load(date.toString(), function(doc) {
+
+    };
+    
         // Load the document id from the URL
-        realtimeUtils.load(id.replace('/', ''), onFileLoaded, onFileInitialize);
+    /*    realtimeUtils.load(id.replace('/', ''), onFileLoaded, onFileInitialize);
     } else {
         // Create a new document, add it to the URL
         realtimeUtils.createRealtimeFile('New Quickstart File', function(createResponse) {
             window.history.pushState(null, null, '?id=' + createResponse.id);
             realtimeUtils.load(createResponse.id, onFileLoaded, onFileInitialize);
         });
-    }
+    }*/
 }
 
 // The first time a file is opened, it must be initialized with the
@@ -48,7 +54,7 @@ function start() {
 // to our model at the root.
 function onFileInitialize(model) {
     var string = model.createString();
-    string.setText('Welcome to the Quickstart App!');
+    string.setText('Today\'s date is ' + model);
     model.getRoot().set('demo_string', string);
 }
 
