@@ -34,11 +34,12 @@ function start() {
     if (!date) {
 	date = new Date();
     }
-    gapi.drive.realtime.load(date.toString(), function(doc) {
-
-    };
     
-        // Load the document id from the URL
+    gapi.drive.realtime.load(date.toString(), function(doc) {
+	alert(doc);
+    });
+
+            // Load the document id from the URL
     /*    realtimeUtils.load(id.replace('/', ''), onFileLoaded, onFileInitialize);
     } else {
         // Create a new document, add it to the URL
