@@ -7,6 +7,7 @@ if (!/^([0-9])$/.test(clientId[0])) {
 var realtimeUtils = new utils.RealtimeUtils({ clientId: clientId });
 
 authorize();
+//start();
 
 function authorize() {
     // Attempt to authorize
@@ -34,10 +35,7 @@ function start() {
     if (!date) {
 	date = new Date();
     }
-    
-    gapi.drive.realtime.load(date.toString(), function(doc) {
-	alert(doc);
-    });
+    realtimeUtils.load(date.toString(), onFileLoaded, onFileInitialize);
 
             // Load the document id from the URL
     /*    realtimeUtils.load(id.replace('/', ''), onFileLoaded, onFileInitialize);
