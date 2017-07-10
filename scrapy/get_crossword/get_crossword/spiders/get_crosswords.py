@@ -5,8 +5,10 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from bs4 import BeautifulSoup
 
 import json
+import re
 import scrapy
 
 class CrosswordSpider(scrapy.Spider):
@@ -14,6 +16,7 @@ class CrosswordSpider(scrapy.Spider):
     start_url = 'https://myaccount.nytimes.com/auth/login'
     across_clues = {}
     down_clues = {}
+    grid = []
     handle_httpstatus_list = [424]
     driver = webdriver.Chrome()
 
@@ -49,7 +52,7 @@ class CrosswordSpider(scrapy.Spider):
         wait = WebDriverWait(self.driver, 10)
         wait.until(EC.presence_of_element_located((By.ID, "TopLeft")))
 
-        crossword_url = 'https://www.nytimes.com/crosswords/game/mini/%s' % self.date
+        crossword_url = 'https://www.nytimes.com/crosswords/game/daily/%s' % self.date
         self.driver.get(crossword_url)
         self.parse_crossword(
             HtmlResponse(
@@ -59,6 +62,48 @@ class CrosswordSpider(scrapy.Spider):
         )
 
     def parse_crossword(self, response):
-        across_clues = response.xpath('//ol[@class="ClueList-list--236kf"]').extract_first()
-        print(across_clues)
+        soup = BeautifulSoup(response.body, 'html.parser')
+        clues_list = soup.find_all('ol')
+        across = clues_list[0]
+        a_clues = across.find_all('li')
+        down = clues_list[1]
+        d_clues = down.find_all('li')
+        for clue in a_clues:
+            label = clue.find("span", {"class" : re.compile('Clue-label')}).text
+            text = clue.find("span", {"class" : re.compile('Clue-text')}).text
+            self.across_clues[label] = text
+        for clue in d_clues:
+            label = clue.find("span", {"class" : re.compile('Clue-label')}).text
+            text = clue.find("span", {"class" : re.compile('Clue-text')}).text
+            self.down_clues[label] = text
+
+        print(self.across_clues)
+        print(self.down_clues)
+        cells = soup.find("g", {"class": "cells"}).find_all("g")
+        row = []
+        curr_path = 0
+        for cell in cells:
+            texts = cell.find_all("text")
+            path = cell.find_all("path")
+            path_data = float(path[0]["d"][1:].split(" ")[0])
+            if path_data < curr_path:
+                self.grid.append(row)
+                print(row)
+                curr_path = path_data
+                row = []
+            if len(texts) == 0: # cell is not used
+                row.append("x")
+            elif len(texts) >= 1:    
+                if len(texts) == 1: # If the cell is empty
+                    row.append(0)
+                    curr_path = path_data
+                elif len(texts) == 2: # If the cell contains number
+                    row.append(texts[0].text)
+                    curr_path = path_data
+        self.grid.append(row)
+        print(row)
+        #print(self.grid)
         self.driver.quit()
+
+if __name__ == "__main__":
+    CrosswordSpider().parse_crossword()
