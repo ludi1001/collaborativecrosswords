@@ -1,38 +1,64 @@
 from scrapy.selector import Selector
 from scrapy.http import HtmlResponse
+from scrapy_splash import SplashRequest
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
+import json
 import scrapy
 
 class CrosswordSpider(scrapy.Spider):
     name = "crosswords"
-    start_urls = ['https://myaccount.nytimes.com/auth/login']
+    start_url = 'https://myaccount.nytimes.com/auth/login'
     across_clues = {}
     down_clues = {}
+    handle_httpstatus_list = [424]
+    driver = webdriver.Chrome()
+
+    def get_cookies(self):
+        driver = self.driver
+        driver.implicitly_wait(30)
+        base_url = self.start_url
+        driver.get(base_url)
+        driver.find_element_by_id("username").clear()
+        driver.find_element_by_id("username").send_keys(self.username)
+        driver.find_element_by_id("password").clear()
+        driver.find_element_by_id("password").send_keys(self.password)
+        driver.find_element_by_id("submitButton").click()
+        cookies = driver.get_cookies()
+        return cookies
     
+    def start_requests(self):
+            yield SplashRequest(
+                self.start_url,
+                self.parse,
+                args={'wait': 0.5},
+            )
+                
     def parse(self, response):
-        # pass in parguments via -a username -a password
+        # pass in arguments via -a username -a password
         return scrapy.FormRequest.from_response(
             response,
-            formid='login-form',
-            formdata={'userid': self.username, 'password': self.password},
-            callback=self.after_login
-        )
+            cookies=self.get_cookies(),
+            formdata={"username":self.username, "password":self.password},
+            callback=self.after_login)
 
     def after_login(self, response):
-        yield scrapy.Request(url='https://www.nytimes.com/crosswords/game/mini/%s' % self.date,
-                             callback=self.parse_crossword)
+        wait = WebDriverWait(self.driver, 10)
+        wait.until(EC.presence_of_element_located((By.ID, "TopLeft")))
+
+        crossword_url = 'https://www.nytimes.com/crosswords/game/mini/%s' % self.date
+        self.driver.get(crossword_url)
+        self.parse_crossword(
+            HtmlResponse(
+                self.driver.current_url,
+                body=self.driver.page_source,
+                encoding='utf-8')
+        )
 
     def parse_crossword(self, response):
-        clues = response.xpath('//ol[@class="clue-list"]')
-        across_clues_list = clues[0].xpath('li')
-        down_clues_list = clues[1].xpath('li')
-        across_clues_list_strings = clues[0].xpath('li//text()')
-        down_clues_list_strings = clues[1].xpath('li//text()')
-
-        for aclue, aclue_strings in zip(across_clues_list, across_clues_list_strings):
-            self.across_clues[aclue.xpath('@value')[0].extract()] = aclue_strings.extract()
-
-        for dclue, dclue_strings in zip(down_clues_list, down_clues_list_strings):
-            self.down_clues[dclue.xpath('@value')[0].extract()] = dclue_strings.extract()
-
-        print(self.across_clues)
-        print(self.down_clues)
+        across_clues = response.xpath('//ol[@class="ClueList-list--236kf"]').extract_first()
+        print(across_clues)
+        self.driver.quit()
